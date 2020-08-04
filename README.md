@@ -1,7 +1,7 @@
 ### Hi there, I'm Pulkit  👋
 
 ## I'm a Polymath | FL Data Scientist | Sketch Artist | Open for New Opportunities!
-- 🔭 I’m currently working on Freelance Projects!
+- 🔭 I’m currently working on Freelance Projects and looking for Job.
 - 🌱 I’m currently learning in depth Statistics.
 - 🤝 I’m open to collaborations.
 - 🥅 2020 Goals: Contribute more to Open Source projects.
