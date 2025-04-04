@@ -1,5 +1,220 @@
-<html>
-  <body>
-    <img src = "https://play-lh.googleusercontent.com/MkDTZYlBz5l9DIMGbNHc7Yoc6gE5U5TdlVk-rPAv86mkXuUiKIUPHIrEKvYTJHsGHPw=w526-h296-rw">
-  </body>
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Land Unit Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f8f8f8;
+      border-radius: 8px;
+    }
+    label, select, input, button {
+      margin-bottom: 15px;
+    }
+    .result, .input-group {
+      background: #fff;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+    }
+    .input-set {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .input-set select, .input-set input {
+      flex: 1;
+    }
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .numpad button {
+      padding: 10px;
+      font-size: 18px;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .numpad button:hover {
+      background: #ccc;
+    }
+    @media (max-width: 600px) {
+      .input-set {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>Land Unit Calculator</h2><label for="region">Select Region:</label> <select id="region" onchange="calculateLand()"> <option value="haryana">Haryana (India)</option> <option value="punjab">Punjab (India)</option> <option value="pakistan">Pakistan</option> </select>
+
+  <div id="unitInputs" class="input-group"></div>
+  <button onclick="addUnitInput()">+ Add Unit</button>
+  <br><br><label for="numPersons">Divide among how many persons:</label> <input type="number" id="numPersons" min="1" value="1" oninput="calculateLand()">
+
+<br><br> <button onclick="downloadCSV()">Download CSV</button> <button onclick="downloadPDF()">Download PDF</button>
+
+  <div class="result" id="output"></div>  <div class="numpad" id="numpad">
+    <button onclick="insertNumber('1')">1</button>
+    <button onclick="insertNumber('2')">2</button>
+    <button onclick="insertNumber('3')">3</button>
+    <button onclick="insertNumber('4')">4</button>
+    <button onclick="insertNumber('5')">5</button>
+    <button onclick="insertNumber('6')">6</button>
+    <button onclick="insertNumber('7')">7</button>
+    <button onclick="insertNumber('8')">8</button>
+    <button onclick="insertNumber('9')">9</button>
+    <button onclick="insertNumber('.')">.</button>
+    <button onclick="insertNumber('0')">0</button>
+    <button onclick="clearInput()">C</button>
+  </div>  <script>
+    const constants = {
+      haryana: { marla_sqft: 272.25, marla_per_kanal: 20, kanal_per_kila: 8, sarsai_per_marla: 9 },
+      punjab: { marla_sqft: 272.25, marla_per_kanal: 20, kanal_per_kila: 8, sarsai_per_marla: 9 },
+      pakistan: { marla_sqft: 225, marla_per_kanal: 20, kanal_per_kila: 8, sarsai_per_marla: 9 }
+    };
+
+    let currentResults = {};
+    let activeInput = null;
+
+    function addUnitInput() {
+      const container = document.getElementById("unitInputs");
+      const div = document.createElement("div");
+      div.className = "input-set";
+      const id = `input-${Math.random().toString(36).substring(2)}`;
+      div.innerHTML = `
+        <select class="unit-type" onchange="calculateLand()">
+          <option value="kila">Kila</option>
+          <option value="kanal">Kanal</option>
+          <option value="marla">Marla</option>
+          <option value="sarsai">Sarsai</option>
+        </select>
+        <input type="number" class="unit-value" value="0" min="0" id="${id}" onclick="setActiveInput('${id}')" oninput="calculateLand()">
+        <button onclick="this.parentElement.remove(); calculateLand()">Remove</button>
+      `;
+      container.appendChild(div);
+      calculateLand();
+    }
+
+    function setActiveInput(id) {
+      activeInput = document.getElementById(id);
+    }
+
+    function insertNumber(num) {
+      if (activeInput) {
+        if (num === '.' && activeInput.value.includes('.')) return;
+        activeInput.value += num;
+        calculateLand();
+      }
+    }
+
+    function clearInput() {
+      if (activeInput) {
+        activeInput.value = '';
+        calculateLand();
+      }
+    }
+
+    function convertSarsaiToReadableUnits(total_sarsai, c) {
+      const total_marla = total_sarsai / c.sarsai_per_marla;
+      const kanal = Math.floor(total_marla / c.marla_per_kanal);
+      const rem_marla = Math.floor(total_marla % c.marla_per_kanal);
+      const sarsai = Math.round((total_marla % 1) * c.sarsai_per_marla);
+      return { kanal, marla: rem_marla, sarsai };
+    }
+
+    function calculateLand() {
+      const region = document.getElementById('region').value;
+      const c = constants[region];
+      const numPersons = parseInt(document.getElementById('numPersons').value) || 1;
+
+      const inputs = document.querySelectorAll('.input-set');
+      let total_sarsai = 0;
+
+      inputs.forEach(input => {
+        const unit = input.querySelector('.unit-type').value;
+        const value = parseFloat(input.querySelector('.unit-value').value) || 0;
+
+        let sarsaiValue = 0;
+        if (unit === "kila") {
+          sarsaiValue = value * c.kanal_per_kila * c.marla_per_kanal * c.sarsai_per_marla;
+        } else if (unit === "kanal") {
+          sarsaiValue = value * c.marla_per_kanal * c.sarsai_per_marla;
+        } else if (unit === "marla") {
+          sarsaiValue = value * c.sarsai_per_marla;
+        } else if (unit === "sarsai") {
+          sarsaiValue = value;
+        }
+        total_sarsai += sarsaiValue;
+      });
+
+      const total_per_person = Math.floor(total_sarsai / numPersons);
+      const readableEach = convertSarsaiToReadableUnits(total_per_person, c);
+
+      const total_marla = total_sarsai / c.sarsai_per_marla;
+      const total_kanal = Math.floor(total_marla / c.marla_per_kanal);
+      const remaining_marla = Math.floor(total_marla % c.marla_per_kanal);
+      const remaining_sarsai = Math.round((total_marla % 1) * c.sarsai_per_marla);
+
+      const total_kanal_decimal = total_marla / c.marla_per_kanal;
+      const total_kila = total_kanal_decimal / c.kanal_per_kila;
+      const total_sqft = total_kanal_decimal * c.marla_sqft * c.marla_per_kanal;
+      const total_acre = total_sqft / 43560;
+
+      currentResults = {
+        kanal: total_kanal,
+        marla: remaining_marla,
+        sarsai: remaining_sarsai,
+        kila: total_kila.toFixed(4),
+        acre: total_acre.toFixed(4),
+        sqft: total_sqft.toFixed(2)
+      };
+
+      document.getElementById('output').innerHTML = `
+        <strong>Total:</strong><br>
+        Kanal: ${total_kanal}, Marla: ${remaining_marla}, Sarsai: ${remaining_sarsai}<br>
+        Kila: ${total_kila.toFixed(4)}<br>
+        Acre: ${total_acre.toFixed(4)}<br>
+        Sqft: ${total_sqft.toFixed(2)}<br><br>
+        <strong>Per Person (${numPersons}):</strong><br>
+        Kanal: ${readableEach.kanal}, Marla: ${readableEach.marla}, Sarsai: ${readableEach.sarsai}
+      `;
+    }
+
+    function downloadCSV() {
+      const unitData = Array.from(document.querySelectorAll('.input-set')).map(el => `${el.querySelector('.unit-type').value}:${el.querySelector('.unit-value').value}`).join('; ');
+      const numPersons = parseInt(document.getElementById('numPersons').value);
+      const csv = `Region,Inputs,Total Kila,Acre,Square Feet,Persons\n${document.getElementById('region').value},${unitData},${currentResults.kila},${currentResults.acre},${currentResults.sqft},${numPersons}`;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'land_calculation.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const numPersons = parseInt(document.getElementById('numPersons').value);
+      const units = Array.from(document.querySelectorAll('.input-set')).map(el => `${el.querySelector('.unit-type').value}: ${el.querySelector('.unit-value').value}`).join("\n");
+      const content = `Land Unit Conversion Result\n\nRegion: ${document.getElementById('region').value}\n\nInputs:\n${units}\n\nConverted Units:\nTotal: Kanal: ${currentResults.kanal}, Marla: ${currentResults.marla}, Sarsai: ${currentResults.sarsai}\nKila: ${currentResults.kila}\nAcre: ${currentResults.acre}\nSquare Feet: ${currentResults.sqft}\n\nDivided among ${numPersons} people.`;
+      doc.text(content, 10, 10);
+      doc.save('land_calculation.pdf');
+    }
+
+    // Add one input by default
+    window.onload = addUnitInput;
+  </script></body>
 </html>
