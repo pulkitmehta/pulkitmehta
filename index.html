@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Land Unit Calculator (Haryana)</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <div class="container">
+    <h1>Land Unit Calculator (Haryana)</h1>
+
+    <div id="land-inputs">
+      <!-- Dynamic land unit entries -->
+    </div>
+    <button id="add-entry">+ Add Land Entry</button>
+
+    <div class="section">
+      <label for="numPersons">Divide among how many persons?</label>
+      <input type="number" id="numPersons" value="2" min="1"/>
+    </div>
+
+    <div id="totals-output" class="section">
+      <!-- Live calculated totals -->
+    </div>
+
+    <div id="division-grid" class="section">
+      <!-- Visual division will be shown here -->
+    </div>
+
+    <div class="section downloads">
+      <button id="download-csv">Download CSV</button>
+      <button id="download-pdf">Download PDF</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
